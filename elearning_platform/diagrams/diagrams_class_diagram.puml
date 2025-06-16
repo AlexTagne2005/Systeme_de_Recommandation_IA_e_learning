@@ -1,0 +1,59 @@
+@startuml
+class User {
+  +id: int
+  +username: string
+  +email: string
+  +password: string
+  +created_at: datetime
+  +register()
+  +login()
+  +update_profile()
+}
+
+class Admin {
+  +add_content()
+  +update_content()
+  +delete_content()
+  +manage_users()
+}
+
+class Content {
+  +id: int
+  +title: string
+  +description: string
+  +category: string
+  +created_at: datetime
+  +get_details()
+}
+
+class Course
+class Video
+class Article
+
+class Interaction {
+  +user_id: int
+  +content_id: int
+  +rating: float
+  +comment: string
+  +timestamp: datetime
+  +save_interaction()
+}
+
+class Recommendation {
+  +user_id: int
+  +content_id: int
+  +score: float
+  +generate_recommendations()
+  +get_recommendations()
+}
+
+User <|-- Admin
+Content <|-- Course
+Content <|-- Video
+Content <|-- Article
+User "1" -- "n" Interaction
+Content "1" -- "n" Interaction
+User "1" -- "n" Recommendation
+Content "1" -- "n" Recommendation
+
+@enduml

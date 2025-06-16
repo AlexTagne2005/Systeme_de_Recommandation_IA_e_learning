@@ -1,0 +1,28 @@
+@startuml
+node "Client" {
+  [彼此
+  [Navigateur] #--> [Serveur Web]
+  [Application Mobile] #--> [Serveur Web]
+}
+
+node "Serveur Web" {
+  [Django + API REST] --> [Base de données]
+  [Django + API REST] --> [Service IA]
+}
+
+node "Base de données" {
+  [PostgreSQL]
+}
+
+node "Service IA" {
+  [Scikit-learn]
+}
+
+node "GitHub" {
+  [Repository]
+}
+
+[Repository] --> [Serveur Web]
+[Repository] --> [Service IA]
+
+@enduml

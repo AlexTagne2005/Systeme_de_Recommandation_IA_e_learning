@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+
+# Django
+*.log
+*.pot
+*.pyc
+*.sqlite3
+
+# Environnement virtuel
+venv/
+*.env
+
+# Autres
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/

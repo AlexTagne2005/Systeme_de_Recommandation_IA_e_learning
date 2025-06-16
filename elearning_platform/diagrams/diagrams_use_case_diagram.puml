@@ -1,0 +1,25 @@
+@startuml
+actor Utilisateur
+actor Administrateur
+actor "Système de recommandation" as System
+
+Utilisateur --> (S'inscrire)
+Utilisateur --> (Se connecter)
+Utilisateur --> (Mettre à jour le profil)
+Utilisateur --> (Consulter contenu)
+Utilisateur --> (Interagir avec contenu)
+Utilisateur --> (Recevoir recommandations)
+Utilisateur --> (Rechercher contenu)
+
+Administrateur --> (Ajouter contenu)
+Administrateur --> (Modifier contenu)
+Administrateur --> (Supprimer contenu)
+Administrateur --> (Gérer utilisateurs)
+
+System --> (Analyser interactions)
+System --> (Générer recommandations)
+
+(Recevoir recommandations) .> (Analyser interactions) : include
+(Recevoir recommandations) .> (Générer recommandations) : include
+
+@enduml
