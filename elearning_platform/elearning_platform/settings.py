@@ -59,8 +59,7 @@ DATABASES = {
     }
 }
 
-# Supprimez ou commentez AUTH_USER_MODEL si présent
-# AUTH_USER_MODEL = 'core.User'  # Commenté pour utiliser le modèle User intégré
+AUTH_USER_MODEL = 'core.User'
 
 AUTH_PASSWORD_VALIDATORS = [
     {
