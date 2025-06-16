@@ -10,6 +10,7 @@ from .serializers import (
     UserSerializer, AdminSerializer, CourseSerializer, VideoSerializer,
     ArticleSerializer, InteractionSerializer, RecommendationSerializer
 )
+from .recommendation_engine import save_recommendations
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -61,7 +62,6 @@ class ContentViewSet(viewsets.ModelViewSet):
             return Video.objects.all()
         elif content_type == 'article':
             return Article.objects.all()
-        # Retourne tous les contenus par défaut
         return list(Course.objects.all()) + list(Video.objects.all()) + list(Article.objects.all())
 
     def get_serializer_class(self):
@@ -72,7 +72,7 @@ class ContentViewSet(viewsets.ModelViewSet):
             return VideoSerializer
         elif content_type == 'article':
             return ArticleSerializer
-        return CourseSerializer  # Default
+        return CourseSerializer
 
     def perform_create(self, serializer):
         if not self.request.user.is_staff:
@@ -84,7 +84,7 @@ class SearchContentView(APIView):
 
     def get(self, request):
         query = request.query_params.get('q', '')
-        content_type = request.query_params.get('content_type', '')
+        content_type = self.request.query_params.get('content_type', '')
         queryset = []
         if content_type:
             if content_type == 'course':
@@ -104,7 +104,7 @@ class SearchContentView(APIView):
                     if query.lower() in item.title.lower() or query.lower() in item.description.lower():
                         filtered.append(item)
                 queryset = filtered
-        serializer_class = CourseSerializer  # Default
+        serializer_class = CourseSerializer
         if content_type == 'video':
             serializer_class = VideoSerializer
         elif content_type == 'article':
@@ -127,6 +127,15 @@ class RecommendationViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         return Recommendation.objects.filter(user=self.request.user)
 
+class GenerateRecommendationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        save_recommendations(request.user.id)
+        recommendations = Recommendation.get_recommendations(request.user.id)
+        serializer = RecommendationSerializer(recommendations, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 class AdminContentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminUser]
 
@@ -138,7 +147,6 @@ class AdminContentViewSet(viewsets.ModelViewSet):
             return Video.objects.all()
         elif content_type == 'article':
             return Article.objects.all()
-        # Retourne tous les contenus par défaut
         return list(Course.objects.all()) + list(Video.objects.all()) + list(Article.objects.all())
 
     def get_serializer_class(self):

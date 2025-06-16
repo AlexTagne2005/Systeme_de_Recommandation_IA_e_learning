@@ -140,7 +140,7 @@ class Recommendation(models.Model):
 
     @classmethod
     def generate_recommendations(cls, user_id):
-        # Placeholder pour la logique de recommandation (à implémenter avec Scikit-learn)
+        # Cette méthode est appelée depuis views.py pour éviter l'importation circulaire
         pass
 
     @classmethod
