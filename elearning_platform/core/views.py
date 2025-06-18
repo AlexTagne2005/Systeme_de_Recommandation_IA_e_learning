@@ -22,10 +22,17 @@ class HomeView(View):
         if not request.user.is_authenticated:
             return redirect('login')
         # Appeler l'API pour obtenir les recommandations
-        token = Token.objects.get(user=request.user).key
+        try:
+            token = Token.objects.get(user=request.user).key
+        except Token.DoesNotExist:
+            token = Token.objects.create(user=request.user).key
         headers = {'Authorization': f'Token {token}'}
-        response = requests.get('http://localhost:8000/api/recommendations/', headers=headers)
-        recommendations = response.json() if response.status_code == 200 else []
+        try:
+            response = requests.get('http://backend:8000/api/recommendations/', headers=headers)
+            recommendations = response.json() if response.status_code == 200 else []
+        except requests.exceptions.RequestException:
+            recommendations = []
+            messages.error(request, 'Unable to fetch recommendations.')
         return render(request, 'home.html', {'recommendations': recommendations})
 
 class SearchView(View):
@@ -35,11 +42,18 @@ class SearchView(View):
         query = request.GET.get('q', '')
         content_type = request.GET.get('content_type', '')
         # Appeler l'API pour effectuer la recherche
-        token = Token.objects.get(user=request.user).key
+        try:
+            token = Token.objects.get(user=request.user).key
+        except Token.DoesNotExist:
+            token = Token.objects.create(user=request.user).key
         headers = {'Authorization': f'Token {token}'}
         params = {'q': query, 'content_type': content_type}
-        response = requests.get('http://localhost:8000/api/contents/search/', headers=headers, params=params)
-        results = response.json() if response.status_code == 200 else []
+        try:
+            response = requests.get('http://backend:8000/api/contents/search/', headers=headers, params=params)
+            results = response.json() if response.status_code == 200 else []
+        except requests.exceptions.RequestException:
+            results = []
+            messages.error(request, 'Unable to fetch search results.')
         return render(request, 'search.html', {'results': results})
 
 class ProfileView(View):
@@ -52,14 +66,20 @@ class ProfileView(View):
         if not request.user.is_authenticated:
             return redirect('login')
         # Appeler l'API pour mettre à jour le profil
-        token = Token.objects.get(user=request.user).key
+        try:
+            token = Token.objects.get(user=request.user).key
+        except Token.DoesNotExist:
+            token = Token.objects.create(user=request.user).key
         headers = {'Authorization': f'Token {token}'}
         data = {'email': request.POST.get('email')}
-        response = requests.put('http://localhost:8000/api/profile/', headers=headers, data=data)
-        if response.status_code == 200:
-            messages.success(request, 'Profile updated successfully.')
-        else:
-            messages.error(request, 'Failed to update profile.')
+        try:
+            response = requests.put('http://backend:8000/api/profile/', headers=headers, data=data)
+            if response.status_code == 200:
+                messages.success(request, 'Profile updated successfully.')
+            else:
+                messages.error(request, 'Failed to update profile.')
+        except requests.exceptions.RequestException:
+            messages.error(request, 'Unable to update profile.')
         return render(request, 'profile.html')
 
 class LoginView(View):
@@ -74,6 +94,7 @@ class LoginView(View):
         user = authenticate(request, username=username, password=password)
         if user:
             login(request, user)
+            token, _ = Token.objects.get_or_create(user=user)
             return redirect('home')
         messages.error(request, 'Invalid credentials.')
         return render(request, 'login.html')
@@ -91,13 +112,17 @@ class RegisterView(View):
             'email': request.POST.get('email'),
             'password': request.POST.get('password')
         }
-        response = requests.post('http://localhost:8000/api/register/', data=data)
-        if response.status_code == 201:
-            user = authenticate(request, username=data['username'], password=data['password'])
-            if user:
-                login(request, user)
-                return redirect('home')
-        messages.error(request, 'Registration failed.')
+        try:
+            response = requests.post('http://backend:8000/api/register/', data=data)
+            if response.status_code == 201:
+                user = authenticate(request, username=data['username'], password=data['password'])
+                if user:
+                    login(request, user)
+                    token, _ = Token.objects.get_or_create(user=user)
+                    return redirect('home')
+            messages.error(request, 'Registration failed.')
+        except requests.exceptions.RequestException:
+            messages.error(request, 'Unable to connect to registration service.')
         return render(request, 'register.html')
 
 class LogoutView(View):
