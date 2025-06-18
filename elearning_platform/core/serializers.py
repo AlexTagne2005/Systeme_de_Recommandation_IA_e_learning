@@ -18,20 +18,20 @@ class UserSerializer(serializers.ModelSerializer):
 class CourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
-        fields = ['id', 'title', 'description', 'category', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = ['id', 'title', 'description', 'category']
+        read_only_fields = ['id']
 
 class VideoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Video
-        fields = ['id', 'title', 'description', 'category', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = ['id', 'title', 'description', 'category']
+        read_only_fields = ['id']
 
 class ArticleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Article
-        fields = ['id', 'title', 'description', 'category', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = ['id', 'title', 'description', 'category']
+        read_only_fields = ['id']
 
 class InteractionSerializer(serializers.ModelSerializer):
     class Meta:

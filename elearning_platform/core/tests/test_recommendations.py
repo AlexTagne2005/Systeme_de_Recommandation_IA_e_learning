@@ -107,11 +107,11 @@ def test_save_recommendations_success(user, contents, interactions):
     assert course3.id in recommended_content_ids or article.id in recommended_content_ids, "Aucun contenu non noté recommandé"
 
 @pytest.mark.django_db
-def test_save_recommendations_no_interactions(user):
+def test_save_recommendations_no_interactions(user, contents):
     """Teste save_recommendations avec aucune interaction."""
     save_recommendations(user.id)
     
-    # Vérifier qu'aucune recommandation n'est générée
+    # Vérifier que des recommandations sont générées
     recommendations = Recommendation.objects.filter(user=user)
     assert recommendations.exists(), "Aucune recommandation n'a été générée sans interactions"
 

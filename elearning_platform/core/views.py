@@ -62,7 +62,7 @@ class ContentViewSet(viewsets.ModelViewSet):
             return Video.objects.all()
         elif content_type == 'article':
             return Article.objects.all()
-        return Course.objects.all().union(Video.objects.all(), Article.objects.all())
+        return Course.objects.all()
 
     def get_serializer_class(self):
         content_type = self.request.query_params.get('content_type')
@@ -85,25 +85,39 @@ class SearchContentView(APIView):
     def get(self, request):
         query = request.query_params.get('q', '')
         content_type = request.query_params.get('content_type', '')
+        
+        results = []
         if content_type == 'course':
             queryset = Course.objects.all()
+            if query:
+                queryset = queryset.filter(Q(title__icontains=query) | Q(description__icontains=query))
+            results = CourseSerializer(queryset, many=True).data
         elif content_type == 'video':
             queryset = Video.objects.all()
+            if query:
+                queryset = queryset.filter(Q(title__icontains=query) | Q(description__icontains=query))
+            results = VideoSerializer(queryset, many=True).data
         elif content_type == 'article':
             queryset = Article.objects.all()
+            if query:
+                queryset = queryset.filter(Q(title__icontains=query) | Q(description__icontains=query))
+            results = ArticleSerializer(queryset, many=True).data
         else:
-            queryset = Course.objects.all().union(Video.objects.all(), Article.objects.all())
+            # Combiner tous les contenus
+            courses = Course.objects.all()
+            videos = Video.objects.all()
+            articles = Article.objects.all()
+            if query:
+                courses = courses.filter(Q(title__icontains=query) | Q(description__icontains=query))
+                videos = videos.filter(Q(title__icontains=query) | Q(description__icontains=query))
+                articles = articles.filter(Q(title__icontains=query) | Q(description__icontains=query))
+            results = (
+                CourseSerializer(courses, many=True).data +
+                VideoSerializer(videos, many=True).data +
+                ArticleSerializer(articles, many=True).data
+            )
 
-        if query:
-            queryset = queryset.filter(Q(title__icontains=query) | Q(description__icontains=query))
-
-        serializer_class = CourseSerializer
-        if content_type == 'video':
-            serializer_class = VideoSerializer
-        elif content_type == 'article':
-            serializer_class = ArticleSerializer
-        serializer = serializer_class(queryset, many=True)
-        return Response(serializer.data)
+        return Response(results)
 
 class InteractionViewSet(viewsets.ModelViewSet):
     queryset = Interaction.objects.all()
@@ -140,7 +154,7 @@ class AdminContentViewSet(viewsets.ModelViewSet):
             return Video.objects.all()
         elif content_type == 'article':
             return Article.objects.all()
-        return Course.objects.all().union(Video.objects.all(), Article.objects.all())
+        return Course.objects.all()
 
     def get_serializer_class(self):
         content_type = self.request.query_params.get('content_type')
