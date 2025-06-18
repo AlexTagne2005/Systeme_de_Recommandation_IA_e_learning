@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Home - E-Learning Platform{% endblock %}
+{% block content %}
+    <h1 class="text-3xl font-bold mb-6">Your Recommendations</h1>
+    {% if recommendations %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for recommendation in recommendations %}
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-xl font-semibold">{{ recommendation.content_type.name|title }}: {{ recommendation.content_id }}</h2>
+                    <p class="text-gray-600">Score: {{ recommendation.score|floatformat:2 }}</p>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-gray-600">No recommendations available yet. Start interacting with content!</p>
+    {% endif %}
+{% endblock %}

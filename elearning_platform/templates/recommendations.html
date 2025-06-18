@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}Recommandations{% endblock %}
+{% block content %}
+    <h1>Vos recommandations</h1>
+    {% if recommendations %}
+        <ul>
+        {% for rec in recommendations %}
+            <li>
+                <strong>{{ rec.content_type.name|title }} :</strong> {{ rec.content.title }} (Score : {{ rec.score|floatformat:2 }})
+            </li>
+        {% endfor %}
+        </ul>
+        <form method="post" action="{% url 'generate_recommendations' %}">
+            {% csrf_token %}
+            <button type="submit">Générer de nouvelles recommandations</button>
+        </form>
+    {% else %}
+        <p>Aucune recommandation disponible. Cliquez ci-dessous pour en générer.</p>
+        <form method="post" action="{% url 'generate_recommendations' %}">
+            {% csrf_token %}
+            <button type="submit">Générer des recommandations</button>
+        </form>
+    {% endif %}
+{% endblock %}

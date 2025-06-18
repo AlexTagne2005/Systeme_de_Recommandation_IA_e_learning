@@ -1,4 +1,8 @@
-from rest_framework import viewsets, status, generics
+from django.shortcuts import render, redirect
+from django.views import View
+from django.contrib.auth import authenticate, login, logout
+from django.contrib import messages
+from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
@@ -11,8 +15,98 @@ from .serializers import (
     ArticleSerializer, InteractionSerializer, RecommendationSerializer
 )
 from .recommendation_engine import save_recommendations
+import requests
 
-class RegisterView(APIView):
+class HomeView(View):
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return redirect('login')
+        # Appeler l'API pour obtenir les recommandations
+        token = Token.objects.get(user=request.user).key
+        headers = {'Authorization': f'Token {token}'}
+        response = requests.get('http://localhost:8000/api/recommendations/', headers=headers)
+        recommendations = response.json() if response.status_code == 200 else []
+        return render(request, 'home.html', {'recommendations': recommendations})
+
+class SearchView(View):
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return redirect('login')
+        query = request.GET.get('q', '')
+        content_type = request.GET.get('content_type', '')
+        # Appeler l'API pour effectuer la recherche
+        token = Token.objects.get(user=request.user).key
+        headers = {'Authorization': f'Token {token}'}
+        params = {'q': query, 'content_type': content_type}
+        response = requests.get('http://localhost:8000/api/contents/search/', headers=headers, params=params)
+        results = response.json() if response.status_code == 200 else []
+        return render(request, 'search.html', {'results': results})
+
+class ProfileView(View):
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return redirect('login')
+        return render(request, 'profile.html')
+
+    def post(self, request):
+        if not request.user.is_authenticated:
+            return redirect('login')
+        # Appeler l'API pour mettre à jour le profil
+        token = Token.objects.get(user=request.user).key
+        headers = {'Authorization': f'Token {token}'}
+        data = {'email': request.POST.get('email')}
+        response = requests.put('http://localhost:8000/api/profile/', headers=headers, data=data)
+        if response.status_code == 200:
+            messages.success(request, 'Profile updated successfully.')
+        else:
+            messages.error(request, 'Failed to update profile.')
+        return render(request, 'profile.html')
+
+class LoginView(View):
+    def get(self, request):
+        if request.user.is_authenticated:
+            return redirect('home')
+        return render(request, 'login.html')
+
+    def post(self, request):
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        if user:
+            login(request, user)
+            return redirect('home')
+        messages.error(request, 'Invalid credentials.')
+        return render(request, 'login.html')
+
+class RegisterView(View):
+    def get(self, request):
+        if request.user.is_authenticated:
+            return redirect('home')
+        return render(request, 'register.html')
+
+    def post(self, request):
+        # Appeler l'API pour enregistrer un nouvel utilisateur
+        data = {
+            'username': request.POST.get('username'),
+            'email': request.POST.get('email'),
+            'password': request.POST.get('password')
+        }
+        response = requests.post('http://localhost:8000/api/register/', data=data)
+        if response.status_code == 201:
+            user = authenticate(request, username=data['username'], password=data['password'])
+            if user:
+                login(request, user)
+                return redirect('home')
+        messages.error(request, 'Registration failed.')
+        return render(request, 'register.html')
+
+class LogoutView(View):
+    def get(self, request):
+        logout(request)
+        return redirect('login')
+
+# API Views (unchanged)
+class APIRegisterView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -25,7 +119,7 @@ class RegisterView(APIView):
             return Response({'token': token.key, 'user': serializer.data}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class LoginView(APIView):
+class APILoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -37,7 +131,7 @@ class LoginView(APIView):
             return Response({'token': token.key, 'user': UserSerializer(user).data})
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
-class ProfileView(APIView):
+class APIProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -103,7 +197,6 @@ class SearchContentView(APIView):
                 queryset = queryset.filter(Q(title__icontains=query) | Q(description__icontains=query))
             results = ArticleSerializer(queryset, many=True).data
         else:
-            # Combiner tous les contenus
             courses = Course.objects.all()
             videos = Video.objects.all()
             articles = Article.objects.all()

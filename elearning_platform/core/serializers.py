@@ -11,32 +11,32 @@ class UserSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'],
-            password=validated_data.get('password')  # Mot de passe fourni séparément
+            password=validated_data.get('password')
         )
         return user
 
 class CourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
-        fields = ['id', 'title', 'description', 'category']
-        read_only_fields = ['id']
+        fields = ['id', 'title', 'description', 'category', 'created_at']
+        read_only_fields = ['id', 'created_at']
 
 class VideoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Video
-        fields = ['id', 'title', 'description', 'category']
-        read_only_fields = ['id']
+        fields = ['id', 'title', 'description', 'category', 'created_at']
+        read_only_fields = ['id', 'created_at']
 
 class ArticleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Article
-        fields = ['id', 'title', 'description', 'category']
-        read_only_fields = ['id']
+        fields = ['id', 'title', 'description', 'category', 'created_at']
+        read_only_fields = ['id', 'created_at']
 
 class InteractionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Interaction
-        fields = ['id', 'user', 'content_type', 'content_id', 'rating', 'timestamp']
+        fields = ['id', 'user', 'content_type', 'content_id', 'rating', 'comment', 'timestamp']
         read_only_fields = ['id', 'user', 'timestamp']
 
 class RecommendationSerializer(serializers.ModelSerializer):

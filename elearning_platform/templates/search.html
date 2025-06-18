@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Search - E-Learning Platform{% endblock %}
+{% block content %}
+    <h1 class="text-3xl font-bold mb-6">Search Content</h1>
+    <form method="GET" action="{% url 'search' %}" class="mb-8">
+        <div class="flex space-x-4">
+            <input type="text" name="q" placeholder="Enter search query..." class="w-full p-2 border rounded-md">
+            <select name="content_type" class="p-2 border rounded-md">
+                <option value="">All</option>
+                <option value="course">Course</option>
+                <option value="video">Video</option>
+                <option value="article">Article</option>
+            </select>
+            <button type="submit" class="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700">Search</button>
+        </div>
+    </form>
+    {% if results %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for result in results %}
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-xl font-semibold">{{ result.title }}</h2>
+                    <p class="text-gray-600">{{ result.description|truncatewords:20 }}</p>
+                    <p class="text-gray-500 text-sm">Category: {{ result.category }}</p>
+                    <p class="text-gray-500 text-sm">Created: {{ result.created_at|date:"F d, Y" }}</p>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-gray-600">No results found.</p>
+    {% endif %}
+{% endblock %}
