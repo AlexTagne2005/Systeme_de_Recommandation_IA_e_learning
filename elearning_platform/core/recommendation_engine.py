@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from sklearn.decomposition import TruncatedSVD
 from .models import Interaction, Recommendation, Course, Video, Article
+from django.contrib.contenttypes.models import ContentType
 
 def train_recommendation_model():
     """
@@ -39,33 +40,48 @@ def generate_recommendations_for_user(user_id):
     Retourne une liste de tuples (content_type_id, content_id, score).
     """
     svd, pivot_table, content_ids = train_recommendation_model()
-    if svd is None or pivot_table is None:
-        return []  # Pas de recommandations si aucune interaction
-
-    # Vérifier si l'utilisateur existe dans la table pivot
-    if user_id not in pivot_table.index:
-        return []
+    
+    # Si aucune interaction, recommander tous les contenus avec un score par défaut
+    if svd is None or pivot_table is None or user_id not in pivot_table.index:
+        recommendations = []
+        for model in [Course, Video, Article]:
+            content_type = ContentType.objects.get_for_model(model)
+            for obj in model.objects.all():
+                recommendations.append((content_type.id, obj.id, 0.1))  # Score minimal
+        return recommendations
 
     # Obtenir les prédictions pour l'utilisateur
     user_index = list(pivot_table.index).index(user_id)
     user_ratings = pivot_table.iloc[user_index].values
     user_latent = svd.transform([user_ratings])[0]
-    predicted_ratings = np.dot(user_latent, svd.components_)
+    predicted_ratings = np.dot(user_latent, svd.components_)  # Utiliser toutes les composantes
 
     # Créer une liste de recommandations
     recommendations = []
     for idx, content_id in enumerate(content_ids):
-        content_type_id, content_id = map(int, content_id.split('_'))
-        score = predicted_ratings[idx]
-        if score > 0 and pivot_table.loc[user_id, content_id] == 0:  # Recommander seulement les contenus non notés
-            recommendations.append((content_type_id, content_id, score))
+        try:
+            content_type_id, content_id = map(int, content_id.split('_'))
+            score = float(predicted_ratings[idx])
+            # Vérifier que le contenu n'est pas déjà noté
+            if content_id in pivot_table.columns and score > 0 and pivot_table.loc[user_id, content_id] == 0:
+                recommendations.append((content_type_id, content_id, score))
+        except (KeyError, ValueError):
+            continue
+
+    # Ajouter des contenus non présents dans pivot_table
+    existing_content_ids = {int(cid.split('_')[1]) for cid in content_ids}
+    for model in [Course, Video, Article]:
+        content_type = ContentType.objects.get_for_model(model)
+        for obj in model.objects.all():
+            if obj.id not in existing_content_ids:
+                recommendations.append((content_type.id, obj.id, 0.1))  # Score minimal
     
     return recommendations
 
 def save_recommendations(user_id):
     """
     Sauvegarde les recommandations pour un utilisateur dans la base de données.
-    Supprime les recommandations existantes avant d'en ajouter de nouvelles.
+    Supprime les recommandations existantes avant d'ajouter de nouvelles.
     """
     recommendations = generate_recommendations_for_user(user_id)
     Recommendation.objects.filter(user_id=user_id).delete()

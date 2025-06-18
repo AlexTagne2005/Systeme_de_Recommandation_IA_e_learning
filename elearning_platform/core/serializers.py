@@ -1,59 +1,46 @@
 from rest_framework import serializers
-from .models import User, Admin, Content, Course, Video, Article, Interaction, Recommendation
-from django.contrib.contenttypes.models import ContentType
+from .models import User, Course, Video, Article, Interaction, Recommendation
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        fields = ['id', 'username', 'email']
+        read_only_fields = ['id']
 
-class AdminSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data['email'],
+            password=validated_data.get('password')  # Mot de passe fourni séparément
+        )
+        return user
 
+class CourseSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Admin
-        fields = ['id', 'user']
-
-class ContentSerializer(serializers.ModelSerializer):
-    content_type = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Content
-        fields = ['id', 'title', 'description', 'category', 'created_at', 'content_type']
-        read_only_fields = ['id', 'created_at']
-
-    def get_content_type(self, obj):
-        return obj.__class__.__name__.lower()
-
-class CourseSerializer(ContentSerializer):
-    class Meta(ContentSerializer.Meta):
         model = Course
+        fields = ['id', 'title', 'description', 'category', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
-class VideoSerializer(ContentSerializer):
-    class Meta(ContentSerializer.Meta):
+class VideoSerializer(serializers.ModelSerializer):
+    class Meta:
         model = Video
+        fields = ['id', 'title', 'description', 'category', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
-class ArticleSerializer(ContentSerializer):
-    class Meta(ContentSerializer.Meta):
+class ArticleSerializer(serializers.ModelSerializer):
+    class Meta:
         model = Article
+        fields = ['id', 'title', 'description', 'category', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
 class InteractionSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
-    content_type = serializers.CharField(source='content_type.model', read_only=True)
-    content_id = serializers.IntegerField()
-
     class Meta:
         model = Interaction
-        fields = ['id', 'user', 'content_type', 'content_id', 'rating', 'comment', 'timestamp']
+        fields = ['id', 'user', 'content_type', 'content_id', 'rating', 'timestamp']
         read_only_fields = ['id', 'user', 'timestamp']
 
 class RecommendationSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
-    content_type = serializers.CharField(source='content_type.model', read_only=True)
-    content_id = serializers.IntegerField()
-
     class Meta:
         model = Recommendation
         fields = ['id', 'user', 'content_type', 'content_id', 'score']
-        read_only_fields = ['id', 'user']
+        read_only_fields = ['id', 'user', 'score']

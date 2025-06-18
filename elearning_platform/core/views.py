@@ -7,7 +7,7 @@ from django.contrib.auth import authenticate
 from django.db.models import Q
 from .models import User, Admin, Course, Video, Article, Interaction, Recommendation
 from .serializers import (
-    UserSerializer, AdminSerializer, CourseSerializer, VideoSerializer,
+    UserSerializer, CourseSerializer, VideoSerializer,
     ArticleSerializer, InteractionSerializer, RecommendationSerializer
 )
 from .recommendation_engine import save_recommendations
@@ -62,7 +62,7 @@ class ContentViewSet(viewsets.ModelViewSet):
             return Video.objects.all()
         elif content_type == 'article':
             return Article.objects.all()
-        return list(Course.objects.all()) + list(Video.objects.all()) + list(Article.objects.all())
+        return Course.objects.all().union(Video.objects.all(), Article.objects.all())
 
     def get_serializer_class(self):
         content_type = self.request.query_params.get('content_type')
@@ -84,26 +84,19 @@ class SearchContentView(APIView):
 
     def get(self, request):
         query = request.query_params.get('q', '')
-        content_type = self.request.query_params.get('content_type', '')
-        queryset = []
-        if content_type:
-            if content_type == 'course':
-                queryset = Course.objects.all()
-            elif content_type == 'video':
-                queryset = Video.objects.all()
-            elif content_type == 'article':
-                queryset = Article.objects.all()
+        content_type = request.query_params.get('content_type', '')
+        if content_type == 'course':
+            queryset = Course.objects.all()
+        elif content_type == 'video':
+            queryset = Video.objects.all()
+        elif content_type == 'article':
+            queryset = Article.objects.all()
         else:
-            queryset = list(Course.objects.all()) + list(Video.objects.all()) + list(Article.objects.all())
+            queryset = Course.objects.all().union(Video.objects.all(), Article.objects.all())
+
         if query:
-            if content_type:
-                queryset = queryset.filter(Q(title__icontains=query) | Q(description__icontains=query))
-            else:
-                filtered = []
-                for item in queryset:
-                    if query.lower() in item.title.lower() or query.lower() in item.description.lower():
-                        filtered.append(item)
-                queryset = filtered
+            queryset = queryset.filter(Q(title__icontains=query) | Q(description__icontains=query))
+
         serializer_class = CourseSerializer
         if content_type == 'video':
             serializer_class = VideoSerializer
@@ -129,11 +122,10 @@ class RecommendationViewSet(viewsets.ReadOnlyModelViewSet):
 
 class GenerateRecommendationView(APIView):
     permission_classes = [IsAuthenticated]
-    allowed_methods = ['POST']
 
     def post(self, request):
         save_recommendations(request.user.id)
-        recommendations = Recommendation.get_recommendations(request.user.id)
+        recommendations = Recommendation.objects.filter(user_id=request.user.id)
         serializer = RecommendationSerializer(recommendations, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -148,7 +140,7 @@ class AdminContentViewSet(viewsets.ModelViewSet):
             return Video.objects.all()
         elif content_type == 'article':
             return Article.objects.all()
-        return list(Course.objects.all()) + list(Video.objects.all()) + list(Article.objects.all())
+        return Course.objects.all().union(Video.objects.all(), Article.objects.all())
 
     def get_serializer_class(self):
         content_type = self.request.query_params.get('content_type')
