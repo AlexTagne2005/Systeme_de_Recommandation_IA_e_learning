@@ -1,68 +1,75 @@
 import numpy as np
 import pandas as pd
 from sklearn.decomposition import TruncatedSVD
-from django.contrib.contenttypes.models import ContentType
 from .models import Interaction, Recommendation, Course, Video, Article
 
 def train_recommendation_model():
-    # Extraire les interactions
-    interactions = Interaction.objects.filter(rating__isnull=False).values(
-        'user_id', 'content_type_id', 'content_id', 'rating'
-    )
-    if not interactions:
-        return None, None
+    """
+    Entraîne un modèle de recommandation basé sur SVD.
+    Retourne le modèle SVD, la table pivot et ses colonnes.
+    Si aucune interaction n'existe, retourne (None, None, None).
+    """
+    interactions = Interaction.objects.all()
+    if not interactions.exists():
+        return None, None, None
 
-    # Créer une matrice utilisateur-contenu
-    df = pd.DataFrame(list(interactions))
-    df['content'] = df.apply(
-        lambda x: f"{x['content_type_id']}_{x['content_id']}", axis=1
-    )
-    pivot_table = df.pivot_table(
-        index='user_id', columns='content', values='rating', fill_value=0
-    )
+    # Créer une table pivot utilisateur-contenu
+    data = []
+    for interaction in interactions:
+        content_id = f"{interaction.content_type.id}_{interaction.content_id}"
+        data.append({
+            'user_id': interaction.user_id,
+            'content_id': content_id,
+            'rating': interaction.rating
+        })
+    df = pd.DataFrame(data)
+    pivot_table = df.pivot_table(index='user_id', columns='content_id', values='rating').fillna(0)
 
-    # Appliquer SVD
-    svd = TruncatedSVD(n_components=10, random_state=42)
+    # Ajuster n_components dynamiquement
+    n_features = pivot_table.shape[1]
+    n_components = min(10, n_features - 1) if n_features > 1 else 1
+    svd = TruncatedSVD(n_components=n_components, random_state=42)
     matrix = svd.fit_transform(pivot_table)
-    corr_matrix = np.corrcoef(matrix)
-
-    return svd, corr_matrix, pivot_table
+    
+    return svd, pivot_table, pivot_table.columns
 
 def generate_recommendations_for_user(user_id):
-    svd, corr_matrix, pivot_table = train_recommendation_model()
-    if svd is None:
+    """
+    Génère des recommandations pour un utilisateur donné.
+    Retourne une liste de tuples (content_type_id, content_id, score).
+    """
+    svd, pivot_table, content_ids = train_recommendation_model()
+    if svd is None or pivot_table is None:
+        return []  # Pas de recommandations si aucune interaction
+
+    # Vérifier si l'utilisateur existe dans la table pivot
+    if user_id not in pivot_table.index:
         return []
 
-    try:
-        user_index = pivot_table.index.get_loc(user_id)
-    except KeyError:
-        return []
+    # Obtenir les prédictions pour l'utilisateur
+    user_index = list(pivot_table.index).index(user_id)
+    user_ratings = pivot_table.iloc[user_index].values
+    user_latent = svd.transform([user_ratings])[0]
+    predicted_ratings = np.dot(user_latent, svd.components_)
 
-    # Obtenir les scores de similarité pour l'utilisateur
-    sim_scores = corr_matrix[user_index]
-    user_ratings = pivot_table.loc[user_id]
-    unrated_contents = user_ratings[user_ratings == 0].index
-
-    # Prédire les scores pour les contenus non notés
+    # Créer une liste de recommandations
     recommendations = []
-    for content in unrated_contents:
-        content_index = pivot_table.columns.get_loc(content)
-        score = sim_scores.dot(pivot_table.iloc[:, content_index]) / sim_scores.sum()
-        if score > 0:
-            content_type_id, content_id = map(int, content.split('_'))
+    for idx, content_id in enumerate(content_ids):
+        content_type_id, content_id = map(int, content_id.split('_'))
+        score = predicted_ratings[idx]
+        if score > 0 and pivot_table.loc[user_id, content_id] == 0:  # Recommander seulement les contenus non notés
             recommendations.append((content_type_id, content_id, score))
-
+    
     return recommendations
 
 def save_recommendations(user_id):
+    """
+    Sauvegarde les recommandations pour un utilisateur dans la base de données.
+    Supprime les recommandations existantes avant d'en ajouter de nouvelles.
+    """
     recommendations = generate_recommendations_for_user(user_id)
-    if not recommendations:
-        return
-
-    # Supprimer les anciennes recommandations pour cet utilisateur
     Recommendation.objects.filter(user_id=user_id).delete()
-
-    # Sauvegarder les nouvelles recommandations
+    
     for content_type_id, content_id, score in recommendations:
         Recommendation.objects.create(
             user_id=user_id,

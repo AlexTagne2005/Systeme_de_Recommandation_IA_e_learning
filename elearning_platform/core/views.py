@@ -129,6 +129,7 @@ class RecommendationViewSet(viewsets.ReadOnlyModelViewSet):
 
 class GenerateRecommendationView(APIView):
     permission_classes = [IsAuthenticated]
+    allowed_methods = ['POST']
 
     def post(self, request):
         save_recommendations(request.user.id)
